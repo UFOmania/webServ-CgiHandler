@@ -88,20 +88,15 @@ int CgiHandler::createPipe(int pipe_in[2], int pipe_out[2], std::string * errMsg
     return 1;
 }
 
-int CgiHandler::doFork(int pipe_in[2], int pipe_out[2], std::string * errMsg)
+void CgiHandler::handleFailedFork(int pipe_in[2], int pipe_out[2], std::string * errMsg)
 {
-    int pid = fork();
-    if (pid == -1)
-    {
         close(pipe_in[0]);
         close(pipe_in[1]);
         close(pipe_out[0]);
         close(pipe_out[1]);
       
         setErrMsg(errMsg, "Cgi Error: failed at fork");
-        return 0;
-    }
-    return 1;
+
 }
 
 
@@ -127,10 +122,13 @@ int CgiHandler::handleChild(int pipe_in[2], int pipe_out[2], std::string * errMs
         setErrMsg(errMsg, "Cgi Error: failed at execv");
         return 0;
     }
+
+	return 1;
 }
 
 void CgiHandler::handleParent(int pipe_in[2], int pipe_out[2])
 {
+
     close(pipe_in[0]);
     close(pipe_out[1]);
 
@@ -148,14 +146,19 @@ int CgiHandler::initCgi(std::string * errMsg)
     if (!createPipe(pipe_in, pipe_out, errMsg))
         return 0;
   
-    int pid = doFork(pipe_in, pipe_out, errMsg);
-
+    int pid = fork();
     switch (pid)
     {
+		case -1:
+			handleFailedFork(pipe_in, pipe_out,errMsg);
+			return 0;
+			break;
+
         case 0:
             if (!handleChild(pipe_in, pipe_out, errMsg))
                 return 0;
             break;
+
         default:
             handleParent(pipe_in, pipe_out);
             break;
@@ -163,7 +166,31 @@ int CgiHandler::initCgi(std::string * errMsg)
     return 1;
 }
 
-int CgiHandler::sendToCgi(std::string data)
+int CgiHandler::sendToCgi()
 {
-    
+    int sentSize = write(toCgi, reqBuffer.c_str(), reqBuffer.length());
+	reqBuffer = reqBuffer.substr(sentSize);
+	close (toCgi);
+	return 1;
+}
+
+int CgiHandler::reciveFromCgi()
+{
+	char buff[4096];
+    int len = read(fromCgi, buff, 4096 - 1);
+	
+	if (len <= 0)
+	{
+		close(fromCgi);
+		return 0;
+	}
+
+	buff[len] = '\0';
+	resBuffer += buff;
+	return 1;
+}
+
+void CgiHandler::putRes()
+{
+	std::cout << resBuffer << std::endl;
 }

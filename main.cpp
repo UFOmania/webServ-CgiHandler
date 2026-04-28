@@ -4,6 +4,8 @@
 int main()
 {
     CgiHandler cgi;
+	cgi.reqBuffer = "body";
+
 
     std::string errMsg;
     if (!cgi.setCgiEnv(CGI_HTTP_ACCEPT, "/www",& errMsg))
@@ -15,9 +17,20 @@ int main()
     
     
     if (!cgi.checkCgiEnv(&errMsg))
+	{
         std::cout << errMsg << std::endl;
+	}
 
-    cgi.initCgi();
+	
+	if (!cgi.initCgi(&errMsg))
+		std::cout << errMsg << std::endl;
 
-    std::cout << "end\n";
+
+	cgi.sendToCgi();
+
+	while (cgi.reciveFromCgi() != 0)
+		;
+		
+	cgi.putRes();
+
 }

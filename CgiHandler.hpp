@@ -6,6 +6,7 @@
 #include <set>
 #include <unistd.h>
 #include <stdlib.h>
+#include  <iostream>
 
 #define CGI_REQUEST_METHOD "REQUEST_METHOD"
 #define CGI_QUERY_STRING "QUERY_STRING"
@@ -41,25 +42,29 @@ class CgiHandler
     }   envValue;
 
     private:
-        int toCgi;
-        int fromCgi;
-        std::map<std::string, envValue> _env;
-        void setErrMsg(std::string * errMsg, std::string msg);
-        int createPipe(int pipe_in[2], int pipe_out[2], std::string * errMsg);
-        int doFork(int pipe_in[2], int pipe_out[2], std::string * errMsg);
-        int handleChild(int pipe_in[2], int pipe_out[2], std::string * errMsg);
-        void handleParent(int pipe_in[2], int pipe_out[2]);
-        
-
+		bool isDone;
+		int toCgi;
+		int fromCgi;
+		std::map<std::string, envValue> _env;
+		void setErrMsg(std::string * errMsg, std::string msg);
+		int createPipe(int pipe_in[2], int pipe_out[2], std::string * errMsg);
+		void handleFailedFork(int pipe_in[2], int pipe_out[2], std::string * errMsg);
+		int handleChild(int pipe_in[2], int pipe_out[2], std::string * errMsg);
+		void handleParent(int pipe_in[2], int pipe_out[2]);
+	
+	
     public:
-
+	
+		std::string reqBuffer;
+		std::string resBuffer;
         ~CgiHandler();
         CgiHandler();
         int setCgiEnv(std::string key, std::string val, std::string * msg);
         int checkCgiEnv(std::string * msg);
         int initCgi(std::string * msg = NULL);
-        int sendToCgi(std::string data);
-    
+        int sendToCgi();
+		int reciveFromCgi();
+		void putRes();
 };
 
 
