@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include  <iostream>
+#include <sys/epoll.h>
 
 #define CGI_REQUEST_METHOD "REQUEST_METHOD"
 #define CGI_QUERY_STRING "QUERY_STRING"
@@ -42,7 +43,7 @@ class CgiHandler
     }   envValue;
 
     private:
-		bool isDone;
+		int poll_fd;
 		int toCgi;
 		int fromCgi;
 		std::map<std::string, envValue> _env;
@@ -50,7 +51,7 @@ class CgiHandler
 		int createPipe(int pipe_in[2], int pipe_out[2], std::string * errMsg);
 		void handleFailedFork(int pipe_in[2], int pipe_out[2], std::string * errMsg);
 		int handleChild(int pipe_in[2], int pipe_out[2], std::string * errMsg);
-		void handleParent(int pipe_in[2], int pipe_out[2]);
+		void handleParent(int poll_fd, int pipe_in[2], int pipe_out[2]);
 	
 	
     public:
@@ -61,7 +62,7 @@ class CgiHandler
         CgiHandler();
         int setCgiEnv(std::string key, std::string val, std::string * msg);
         int checkCgiEnv(std::string * msg);
-        int initCgi(std::string * msg = NULL);
+        int initCgi(int poll_fd, std::string * msg = NULL);
         int sendToCgi();
 		int reciveFromCgi();
 		void putRes();

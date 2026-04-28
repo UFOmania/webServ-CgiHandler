@@ -1,4 +1,4 @@
-FLAGS = -Wall -Wextra -Werror -std=c++98 -MMD
+FLAGS = -Wall -Wextra -Werror -std=c++98 -MMD -fsanitize=address
 NAME= cgi
 
 SRC = 	main.cpp\

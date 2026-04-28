@@ -126,22 +126,31 @@ int CgiHandler::handleChild(int pipe_in[2], int pipe_out[2], std::string * errMs
 	return 1;
 }
 
-void CgiHandler::handleParent(int pipe_in[2], int pipe_out[2])
+void CgiHandler::handleParent(int poll_fd ,int pipe_in[2], int pipe_out[2])
 {
 
     close(pipe_in[0]);
     close(pipe_out[1]);
 
-    toCgi = pipe_in[1];
-    fromCgi = pipe_out[0];
+	struct epoll_event event[2];
+
+	event[0].data.fd = pipe_out[0];
+	event[0].events = EPOLLIN;
+	epoll_ctl(poll_fd, EPOLL_CTL_ADD, pipe_out[0], &event[0]);
+
+	event[1].data.fd = pipe_in[1];
+	event[1].events = EPOLLOUT;
+	epoll_ctl(poll_fd, EPOLL_CTL_ADD, pipe_in[1], &event[1]);
+
 }
 
 
-int CgiHandler::initCgi(std::string * errMsg)
+int CgiHandler::initCgi(int poll_fd, std::string * errMsg)
 {
     int pipe_in[2];
     int pipe_out[2];
 
+	this->poll_fd = poll_fd;
     
     if (!createPipe(pipe_in, pipe_out, errMsg))
         return 0;
@@ -160,7 +169,7 @@ int CgiHandler::initCgi(std::string * errMsg)
             break;
 
         default:
-            handleParent(pipe_in, pipe_out);
+            handleParent(poll_fd, pipe_in, pipe_out);
             break;
     }
     return 1;
@@ -169,8 +178,28 @@ int CgiHandler::initCgi(std::string * errMsg)
 int CgiHandler::sendToCgi()
 {
     int sentSize = write(toCgi, reqBuffer.c_str(), reqBuffer.length());
-	reqBuffer = reqBuffer.substr(sentSize);
-	close (toCgi);
+	std::cout << sentSize << std::endl;
+	exit(0);
+	if (sentSize == 0)
+	{
+		epoll_ctl(poll_fd, EPOLL_CTL_DEL, toCgi, NULL);
+		close (toCgi);
+	}
+	try
+	{
+		
+		reqBuffer = reqBuffer.substr(sentSize, reqBuffer.length() - 1);
+	}
+	catch(const std::exception& e)
+	{
+		std::cerr << e.what() << '\n';
+	}
+	
+	if (reqBuffer.empty())
+	{
+		epoll_ctl(poll_fd, EPOLL_CTL_DEL, toCgi, NULL);
+		close (toCgi);
+	}
 	return 1;
 }
 
@@ -181,6 +210,7 @@ int CgiHandler::reciveFromCgi()
 	
 	if (len <= 0)
 	{
+		epoll_ctl(poll_fd, EPOLL_CTL_DEL, fromCgi, NULL);
 		close(fromCgi);
 		return 0;
 	}
